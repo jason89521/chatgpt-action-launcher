@@ -1,117 +1,82 @@
 # ChatGPT Action Launcher
 
-A lightweight browser extension for turning reusable prompts into one-click ChatGPT actions.
+ChatGPT Action Launcher is a small Chromium browser extension for launching reusable prompt templates in a new ChatGPT conversation.
 
-The goal is simple: while browsing any page, open the extension popup, choose an action, and launch a **new ChatGPT conversation** with a saved prompt. Actions can optionally interpolate browser context such as the current URL, page title, or selected text.
+From the popup, choose an action while viewing any page. The extension captures the active tab's URL, title, and optional selected text, renders those values into the action's prompt template, and opens ChatGPT with the result.
 
-> Status: early development. The MVP is not released yet.
+This project is independent and is not affiliated with or endorsed by OpenAI.
 
-## Why
+## What the MVP does
 
-Many ChatGPT workflows are repetitive:
+- Lists saved actions in a popup.
+- Creates, edits, deletes, and reorders actions.
+- Stores actions locally in browser extension storage.
+- Supports `{{url}}` (active tab URL), `{{title}}` (active tab title), and `{{selection}}` (selected text).
+- Opens a new ChatGPT conversation for every action launch.
+- Fills the rendered prompt into ChatGPT's composer.
+- Optionally submits the prompt automatically when an action has **Auto-submit** enabled.
 
-1. copy a URL or selected text,
-2. open ChatGPT,
-3. start a new chat,
-4. paste the context,
-5. paste or rewrite the same instruction,
-6. submit it.
+The extension does not parse GitHub or any other website. GitHub is only an example use case; the action's prompt determines how captured context is interpreted.
 
-ChatGPT Action Launcher turns that sequence into a reusable action in the browser UI.
+The MVP does not include an OpenAI API integration, API-key storage, a backend, user accounts, cloud sync, telemetry, analytics, a prompt marketplace, workflow chaining, or Firefox/Safari release support.
 
-## MVP
+## Prompt templates
 
-The first version will support:
-
-- an extension popup that lists saved actions;
-- creating, editing, deleting, and reordering actions;
-- reusable prompt templates;
-- template variables:
-  - `{{url}}` — current page URL;
-  - `{{title}}` — current page title;
-  - `{{selection}}` — currently selected text;
-- opening a new ChatGPT conversation;
-- filling the rendered prompt into the ChatGPT composer;
-- automatically submitting the prompt;
-- local persistence in browser extension storage;
-- one built-in example action for evaluating whether the current GitHub issue is suitable for a smaller coding agent.
+Create an action with a name and a prompt template. When the action is launched, supported variables are replaced deterministically with values from the active tab. Missing values become an empty string. Unknown variables produce an error instead of silently changing the prompt.
 
 Example:
 
 ```text
-Review this GitHub issue:
+Review this page:
 {{url}}
 
-Decide whether it is small and well-scoped enough for a lightweight coding agent.
-If it is not, split it into smaller implementation tickets.
+The page title is: {{title}}
+
+Consider this selected passage:
+{{selection}}
 ```
 
-The extension itself does not need to understand GitHub. The action template decides how the current browser context should be interpreted.
+The rendered prompt is shown in the popup before the launch completes. The extension only sends that rendered prompt to ChatGPT after the user invokes an action. It does not collect or send page content beyond the URL, title, and selected text used by the template.
 
-## Product principles
+## Permissions
 
-### Generic actions, not site-specific workflows
+The extension requests these Manifest V3 permissions:
 
-The core abstraction is an **action** containing a reusable prompt. GitHub is only the first use case.
+| Permission | Why it is needed |
+| --- | --- |
+| `activeTab` | Temporarily access the active tab when the user invokes an action, so the extension can read its URL and title. |
+| `scripting` | Run a small function in the active tab to read the text currently selected by the user. |
+| `storage` | Save and load action names, templates, ordering, and Auto-submit settings locally. |
 
-### Minimal permissions
+It also declares host permissions for `https://chatgpt.com/*` and `https://chat.openai.com/*`. These allow the dedicated ChatGPT content script to receive a launch message and interact with the ChatGPT composer. No other site has permanent host access.
 
-The extension should request only the permissions required for the feature being used. It should not require broad read access to every page merely to obtain the active tab's URL, title, or selection.
+Some pages, such as browser settings, extension stores, and other restricted browser pages, do not allow script injection. An action launched there may fail visibly because the active page context cannot be accessed.
 
-### Local-first
+## How ChatGPT automation works
 
-Saved actions live in browser extension storage. The MVP has no account system, backend, telemetry, analytics, or cloud sync.
+Launching an action sends a request to the extension background service. The service opens a new `chatgpt.com` tab and retries communication with the ChatGPT content script for a bounded period while the page loads. The content script finds the composer using a small set of known selectors, inserts the rendered prompt, and clicks the send button only when Auto-submit is enabled.
 
-### No OpenAI API key
+ChatGPT's web interface can change independently of this project. If its DOM, composer, or send-button behavior changes, automation may stop working or may require an update. The extension reports readiness and launch failures in the popup or on the ChatGPT page; it must not be treated as proof that a prompt was submitted when the composer cannot be used.
 
-The extension uses the user's existing ChatGPT web session. It does not call the OpenAI API and should never ask users to paste an OpenAI API key.
-
-### Transparent ChatGPT automation
-
-The extension needs limited automation on `chatgpt.com` to populate and submit the composer. This integration is intentionally isolated so changes to ChatGPT's UI can be repaired without affecting action storage or template rendering.
-
-## Planned architecture
-
-The MVP is expected to use:
-
-- [WXT](https://wxt.dev/) for browser-extension tooling;
-- React + TypeScript for extension UI;
-- Manifest V3;
-- browser extension storage for persisted actions;
-- a small template-rendering layer for browser-context variables;
-- a dedicated ChatGPT content-script adapter for composer automation.
-
-The initial target is Chromium-based browsers. Cross-browser support is welcome later, but it is not an MVP requirement.
-
-## Privacy
-
-The intended MVP:
-
-- has no backend;
-- has no telemetry or analytics;
-- does not collect saved prompts;
-- does not collect ChatGPT conversations;
-- does not require an OpenAI API key;
-- only sends a rendered prompt to ChatGPT when the user explicitly invokes an action.
-
-A detailed privacy statement will be added before publishing the extension to an extension store.
-
-## Development
-
-Implementation work is tracked in GitHub Issues. The repository-level guidance for coding agents lives in [AGENTS.md](./AGENTS.md).
+See [the manual smoke test](docs/chatgpt-smoke-test.md) for a release-oriented checklist.
 
 ## Local development
 
-Install dependencies, then start WXT in development mode:
+### Prerequisites
+
+- Node.js 20 or a later supported LTS version.
+- A Chromium-based browser such as Chrome, Edge, Brave, or Chromium.
+
+### Install and run development mode
 
 ```sh
 npm install
 npm run dev
 ```
 
-Load the generated `.output/chrome-mv3-dev` directory as an unpacked extension in a Chromium-based browser.
+WXT writes the development extension to `.output/chrome-mv3-dev`. In the Chromium browser, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select that directory. Keep the development process running while working so WXT can rebuild changes.
 
-The project also provides production validation commands:
+### Validate a production build
 
 ```sh
 npm run typecheck
@@ -120,8 +85,22 @@ npm test
 npm run build
 ```
 
-The ChatGPT content script is currently an entrypoint placeholder. ChatGPT DOM automation is intentionally not part of this bootstrap.
+The production build is written under `.output/`. To test it manually, load the generated Chromium MV3 directory as an unpacked extension from `chrome://extensions`.
 
-## Disclaimer
+### Project structure
 
-This is an independent open-source project and is not affiliated with or endorsed by OpenAI.
+- `src/actions/` — action data model, validation, normalization, ordering, and local storage.
+- `src/templates/` — prompt-template interpolation.
+- `src/browserContext/` — active-tab URL, title, and selection capture.
+- `src/popup/` — popup and action-management UI.
+- `src/chatgpt/` — ChatGPT launch protocol and DOM adapter.
+- `entrypoints/background.ts` — background service handling launch requests.
+- `entrypoints/chatgpt.content.ts` — ChatGPT-only content-script boundary.
+
+## Privacy
+
+Read the full statement in [Privacy](docs/privacy.md). In short, the MVP is local-first: it has no backend, account system, cloud sync, telemetry, or analytics, and it never asks for an OpenAI API key.
+
+## License and affiliation
+
+This repository is an independent open-source project. It is not affiliated with, sponsored by, or endorsed by OpenAI. Refer to the repository for the applicable license.
