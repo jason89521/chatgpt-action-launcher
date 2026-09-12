@@ -100,7 +100,27 @@ A detailed privacy statement will be added before publishing the extension to an
 
 Implementation work is tracked in GitHub Issues. The repository-level guidance for coding agents lives in [AGENTS.md](./AGENTS.md).
 
-Once the bootstrap issue is implemented, local development and build commands will be documented here.
+## Local development
+
+Install dependencies, then start WXT in development mode:
+
+```sh
+npm install
+npm run dev
+```
+
+Load the generated `.output/chrome-mv3-dev` directory as an unpacked extension in a Chromium-based browser.
+
+The project also provides production validation commands:
+
+```sh
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
+
+The ChatGPT content script is currently an entrypoint placeholder. ChatGPT DOM automation is intentionally not part of this bootstrap.
 
 ## Disclaimer
 
