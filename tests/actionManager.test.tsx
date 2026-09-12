@@ -11,6 +11,7 @@ const firstAction: Action = {
   promptTemplate: 'Review {{url}}',
   order: 0,
   autoSubmit: true,
+  targetUrl: 'https://chatgpt.com/g/g-p-first/project',
 };
 
 const secondAction: Action = {
@@ -44,12 +45,14 @@ describe('ActionManager', () => {
     await screen.findByRole('heading', { name: 'Manage actions' });
     fireEvent.change(screen.getByLabelText('Action name'), { target: { value: 'Review' } });
     fireEvent.change(screen.getByLabelText('Prompt template'), { target: { value: 'Review {{url}}' } });
+    fireEvent.change(screen.getByLabelText('ChatGPT destination URL'), { target: { value: 'https://chatgpt.com/g/g-p-new/project' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create action' }));
 
     await waitFor(() => expect(store.create).toHaveBeenCalledWith({
       name: 'Review',
       promptTemplate: 'Review {{url}}',
       autoSubmit: false,
+      targetUrl: 'https://chatgpt.com/g/g-p-new/project',
     }));
   });
 
@@ -60,6 +63,7 @@ describe('ActionManager', () => {
     await screen.findByDisplayValue('Review page');
     fireEvent.change(screen.getByDisplayValue('Review page'), { target: { value: 'Review article' } });
     fireEvent.change(screen.getByDisplayValue('Review {{url}}'), { target: { value: 'Read {{selection}}' } });
+    fireEvent.change(screen.getByDisplayValue('https://chatgpt.com/g/g-p-first/project'), { target: { value: 'https://chatgpt.com/g/g-p-updated/project' } });
     fireEvent.click(screen.getAllByRole('checkbox', { name: 'Auto-submit' })[1]!);
     fireEvent.click(screen.getByRole('button', { name: 'Save Review article' }));
 
@@ -67,6 +71,7 @@ describe('ActionManager', () => {
       name: 'Review article',
       promptTemplate: 'Read {{selection}}',
       autoSubmit: false,
+      targetUrl: 'https://chatgpt.com/g/g-p-updated/project',
     }));
     expect(screen.getByText('{{url}}')).toBeInTheDocument();
     expect(screen.getByText('{{title}}')).toBeInTheDocument();

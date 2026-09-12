@@ -66,6 +66,47 @@ describe('ActionStore', () => {
     await expect(store.load()).resolves.toEqual([action]);
   });
 
+  it('normalizes missing and empty target URLs without adding a destination', async () => {
+    const storage = createMemoryStorage([
+      { id: 'missing', name: 'Missing target', promptTemplate: 'Prompt' },
+      { id: 'empty', name: 'Empty target', promptTemplate: 'Prompt', targetUrl: '   ' },
+    ]);
+    const store = new ActionStore(storage);
+
+    await expect(store.load()).resolves.toEqual([
+      { id: 'missing', name: 'Missing target', promptTemplate: 'Prompt', order: 0, autoSubmit: false },
+      { id: 'empty', name: 'Empty target', promptTemplate: 'Prompt', order: 1, autoSubmit: false },
+    ]);
+  });
+
+  it('persists a valid ChatGPT target URL', async () => {
+    const store = new ActionStore(createMemoryStorage([]));
+
+    await expect(store.create({
+      name: 'Use project',
+      promptTemplate: 'Review {{url}}',
+      autoSubmit: false,
+      targetUrl: 'https://chatgpt.com/g/g-p-example/project',
+    })).resolves.toMatchObject({
+      targetUrl: 'https://chatgpt.com/g/g-p-example/project',
+    });
+  });
+
+  it.each([
+    'http://chatgpt.com/g/g-p-example/project',
+    'https://example.com/chat',
+    'not a URL',
+  ])('rejects an invalid target URL: %s', async (targetUrl) => {
+    const store = new ActionStore(createMemoryStorage([]));
+
+    await expect(store.create({
+      name: 'Invalid target',
+      promptTemplate: 'Prompt',
+      autoSubmit: false,
+      targetUrl,
+    })).rejects.toThrow('Destination URL must be an HTTPS chatgpt.com URL.');
+  });
+
   it('normalizes malformed and legacy stored actions', async () => {
     const storage = createMemoryStorage([
       { id: 'keep', name: '  Existing  ', prompt: 'Old prompt', order: 9 },
@@ -124,6 +165,55 @@ describe('ActionStore', () => {
     await expect(store.delete(second.id)).resolves.toBe(true);
     await expect(store.delete(second.id)).resolves.toBe(false);
     await expect(store.load()).resolves.toEqual([{ ...first, name: 'Updated', autoSubmit: true }]);
+  });
+
+  it('clears an existing target URL when it is edited empty', async () => {
+    const store = new ActionStore(createMemoryStorage([]));
+    const action = await store.create({
+      name: 'Project action',
+      promptTemplate: 'Prompt',
+      autoSubmit: false,
+      targetUrl: 'https://chatgpt.com/g/g-p-example/project',
+    });
+
+    await expect(store.update(action.id, { targetUrl: '' })).resolves.toEqual({
+      id: action.id,
+      name: action.name,
+      promptTemplate: action.promptTemplate,
+      order: action.order,
+      autoSubmit: action.autoSubmit,
+    });
+    await expect(store.load()).resolves.toEqual([{
+      id: action.id,
+      name: action.name,
+      promptTemplate: action.promptTemplate,
+      order: action.order,
+      autoSubmit: action.autoSubmit,
+    }]);
+  });
+
+  it('validates and persists a target URL when an action is updated', async () => {
+    const store = new ActionStore(createMemoryStorage([]));
+    const action = await store.create({ name: 'Project action', promptTemplate: 'Prompt', autoSubmit: false });
+
+    await expect(store.update(action.id, {
+      targetUrl: 'https://chatgpt.com/g/g-p-updated/project',
+    })).resolves.toMatchObject({
+      targetUrl: 'https://chatgpt.com/g/g-p-updated/project',
+    });
+    await expect(store.load()).resolves.toEqual([{
+      ...action,
+      targetUrl: 'https://chatgpt.com/g/g-p-updated/project',
+    }]);
+  });
+
+  it('rejects an invalid target URL when an action is updated', async () => {
+    const store = new ActionStore(createMemoryStorage([]));
+    const action = await store.create({ name: 'Project action', promptTemplate: 'Prompt', autoSubmit: false });
+
+    await expect(store.update(action.id, { targetUrl: 'https://example.com/chat' })).rejects.toThrow(
+      'Destination URL must be an HTTPS chatgpt.com URL.',
+    );
   });
 
   it('reorders actions and keeps unspecified actions at the end', async () => {

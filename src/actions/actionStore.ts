@@ -4,12 +4,14 @@ export interface Action {
   promptTemplate: string;
   order: number;
   autoSubmit: boolean;
+  targetUrl?: string;
 }
 
 export interface ActionInput {
   name: string;
   promptTemplate: string;
   autoSubmit: boolean;
+  targetUrl?: string;
 }
 
 export type ActionUpdate = Partial<ActionInput>;
@@ -61,6 +63,8 @@ function normalizeAction(value: unknown, fallbackOrder: number): Action | undefi
   }
 
   const order = typeof value.order === 'number' && Number.isFinite(value.order) ? value.order : fallbackOrder;
+  const targetUrl = normalizeTargetUrl(value.targetUrl);
+  const validTargetUrl = targetUrl && isValidTargetUrl(targetUrl) ? targetUrl : undefined;
 
   return {
     id: value.id,
@@ -68,7 +72,38 @@ function normalizeAction(value: unknown, fallbackOrder: number): Action | undefi
     promptTemplate,
     order,
     autoSubmit: typeof value.autoSubmit === 'boolean' ? value.autoSubmit : false,
+    ...(validTargetUrl ? { targetUrl: validTargetUrl } : {}),
   };
+}
+
+function normalizeTargetUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value.trim()) {
+    return undefined;
+  }
+
+  return value.trim();
+}
+
+function validateTargetUrl(targetUrl: string | undefined): string | undefined {
+  const normalizedTargetUrl = normalizeTargetUrl(targetUrl);
+  if (!normalizedTargetUrl) {
+    return undefined;
+  }
+
+  if (!isValidTargetUrl(normalizedTargetUrl)) {
+    throw new Error('Destination URL must be an HTTPS chatgpt.com URL.');
+  }
+
+  return normalizedTargetUrl;
+}
+
+function isValidTargetUrl(targetUrl: string): boolean {
+  try {
+    const parsedUrl = new URL(targetUrl);
+    return parsedUrl.protocol === 'https:' && parsedUrl.hostname === 'chatgpt.com';
+  } catch {
+    return false;
+  }
 }
 
 export function normalizeActions(value: unknown): Action[] {
@@ -99,7 +134,24 @@ function validateInput(input: ActionInput): ActionInput {
     throw new Error('An action requires a name and prompt template.');
   }
 
-  return { name, promptTemplate: input.promptTemplate, autoSubmit: input.autoSubmit };
+  const targetUrl = validateTargetUrl(input.targetUrl);
+  return {
+    name,
+    promptTemplate: input.promptTemplate,
+    autoSubmit: input.autoSubmit,
+    ...(targetUrl ? { targetUrl } : {}),
+  };
+}
+
+function applyInput(existing: Pick<Action, 'id' | 'order'>, input: ActionInput): Action {
+  return {
+    id: existing.id,
+    order: existing.order,
+    name: input.name,
+    promptTemplate: input.promptTemplate,
+    autoSubmit: input.autoSubmit,
+    ...(input.targetUrl ? { targetUrl: input.targetUrl } : {}),
+  };
 }
 
 export class ActionStore {
@@ -124,11 +176,7 @@ export class ActionStore {
   async create(input: ActionInput): Promise<Action> {
     const validInput = validateInput(input);
     const actions = await this.load();
-    const action: Action = {
-      ...validInput,
-      id: crypto.randomUUID(),
-      order: actions.length,
-    };
+    const action = applyInput({ id: crypto.randomUUID(), order: actions.length }, validInput);
     await this.save([...actions, action]);
     return action;
   }
@@ -144,8 +192,9 @@ export class ActionStore {
       name: changes.name ?? existing.name,
       promptTemplate: changes.promptTemplate ?? existing.promptTemplate,
       autoSubmit: changes.autoSubmit ?? existing.autoSubmit,
+      targetUrl: changes.targetUrl !== undefined ? changes.targetUrl : existing.targetUrl,
     });
-    const action = { ...existing, ...updated };
+    const action = applyInput(existing, updated);
     await this.save(actions.map((current) => (current.id === id ? action : current)));
     return action;
   }

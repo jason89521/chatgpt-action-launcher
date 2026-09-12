@@ -225,6 +225,13 @@ h2 {
   resize: vertical;
 }
 
+.field-help {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
 .action-editor input:focus,
 .action-editor textarea:focus {
   border-color: #6366f1;

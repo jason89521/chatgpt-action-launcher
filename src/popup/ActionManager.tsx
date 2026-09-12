@@ -25,6 +25,7 @@ function actionInputFrom(action: Action): ActionInput {
     name: action.name,
     promptTemplate: action.promptTemplate,
     autoSubmit: action.autoSubmit,
+    targetUrl: action.targetUrl,
   };
 }
 
@@ -34,6 +35,7 @@ export default function ActionManager({ actionStore, onBack }: ActionManagerProp
     name: '',
     promptTemplate: '',
     autoSubmit: false,
+    targetUrl: '',
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -66,7 +68,7 @@ export default function ActionManager({ actionStore, onBack }: ActionManagerProp
     try {
       const created = await actionStore.create(newAction);
       setActions((current) => [...current, created]);
-      setNewAction({ name: '', promptTemplate: '', autoSubmit: false });
+      setNewAction({ name: '', promptTemplate: '', autoSubmit: false, targetUrl: '' });
     } catch (createError: unknown) {
       setError(getErrorMessage(createError));
     }
@@ -148,6 +150,16 @@ export default function ActionManager({ actionStore, onBack }: ActionManagerProp
                 onChange={(event) => setNewAction({ ...newAction, promptTemplate: event.target.value })}
               />
             </label>
+            <label>
+              ChatGPT destination URL
+              <input
+                aria-label="ChatGPT destination URL"
+                type="text"
+                value={newAction.targetUrl ?? ''}
+                onChange={(event) => setNewAction({ ...newAction, targetUrl: event.target.value })}
+              />
+              <span className="field-help">Optional. Paste an HTTPS ChatGPT Project URL, such as https://chatgpt.com/g/g-p-&lt;project-id&gt;/project.</span>
+            </label>
             <label className="checkbox-label">
               <input
                 checked={newAction.autoSubmit}
@@ -211,6 +223,16 @@ function ActionEditor({ action, isSaving, isFirst, isLast, onDelete, onMove, onS
       <label>
         Prompt template
         <textarea required value={draft.promptTemplate} onChange={(event) => setDraft({ ...draft, promptTemplate: event.target.value })} />
+      </label>
+      <label>
+        ChatGPT destination URL
+        <input
+          aria-label="ChatGPT destination URL"
+          type="text"
+          value={draft.targetUrl ?? ''}
+          onChange={(event) => setDraft({ ...draft, targetUrl: event.target.value })}
+        />
+        <span className="field-help">Optional. Paste an HTTPS ChatGPT Project URL, such as https://chatgpt.com/g/g-p-&lt;project-id&gt;/project.</span>
       </label>
       <label className="checkbox-label">
         <input
