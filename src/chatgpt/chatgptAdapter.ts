@@ -4,6 +4,11 @@ export interface ChatGPTLaunchMessage {
   autoSubmit: boolean;
 }
 
+export interface ChatGPTLaunchErrorMessage {
+  type: 'chatgpt:launch-error';
+  error: string;
+}
+
 export interface ChatGPTLaunchResponse {
   ok: boolean;
   error?: string;
@@ -20,7 +25,7 @@ export interface ChatGPTBrowserApi {
     create(createProperties: { url: string }): Promise<{ id?: number }>;
     sendMessage(
       tabId: number,
-      message: ChatGPTLaunchMessage,
+      message: ChatGPTLaunchMessage | ChatGPTLaunchErrorMessage,
     ): Promise<ChatGPTLaunchResponse>;
   };
   runtime?: {
@@ -78,6 +83,15 @@ export async function launchPromptInNewChatGPTTab(
       // The content script may not have loaded yet. Retry within the bounded window.
     }
     await wait(retryIntervalMs);
+  }
+
+  try {
+    await browserApi.tabs.sendMessage(tab.id, {
+      type: 'chatgpt:launch-error',
+      error: lastError,
+    });
+  } catch {
+    // The content script may still be unavailable, but the launch error is final.
   }
 
   throw new Error(lastError);

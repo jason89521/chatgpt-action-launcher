@@ -46,11 +46,16 @@ describe('launchPromptInNewChatGPTTab', () => {
   });
 
   it('surfaces a failure instead of reporting success when the composer never becomes ready', async () => {
-    const api = createApi(vi.fn(async () => ({ ok: false, error: 'Composer is not ready.' })));
+    const sendMessage = vi.fn(async () => ({ ok: false, error: 'Composer is not ready.' }));
+    const api = createApi(sendMessage);
 
     await expect(
       launchPromptInNewChatGPTTab('Prompt', false, api, { timeoutMs: 1, retryIntervalMs: 0 }),
     ).rejects.toThrow('Composer is not ready.');
+    expect(sendMessage).toHaveBeenLastCalledWith(123, {
+      type: 'chatgpt:launch-error',
+      error: 'Composer is not ready.',
+    });
   });
 
   it('sends requests through the background context', async () => {
