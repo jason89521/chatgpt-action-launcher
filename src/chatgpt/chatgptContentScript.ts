@@ -7,6 +7,22 @@ import type {
 const ERROR_NOTICE_ID = 'chatgpt-action-launcher-error';
 const ERROR_NOTICE_STYLE_ID = 'chatgpt-action-launcher-error-style';
 
+const COMPOSER_SELECTORS = [
+  '#prompt-textarea',
+  '[contenteditable="true"][role="textbox"]',
+  '[contenteditable="true"][data-lexical-editor="true"]',
+  'textarea[placeholder*="Message"]',
+  'textarea[aria-label*="Message"]',
+  '[contenteditable="true"]',
+] as const;
+
+const SEND_BUTTON_SELECTORS = [
+  'button[data-testid="send-button"]',
+  'button[aria-label="Send prompt"]',
+  'button[aria-label="Send message"]',
+  'button[aria-label*="Send"]',
+] as const;
+
 export function handleChatGPTLaunchMessage(
   documentRoot: Document,
   message: ChatGPTLaunchMessage | ChatGPTLaunchErrorMessage,
@@ -30,9 +46,7 @@ export function populateChatGPTComposer(
   prompt: string,
   autoSubmit: boolean,
 ): ChatGPTLaunchResponse {
-  const composer = documentRoot.querySelector<HTMLElement>(
-    '[contenteditable="true"], textarea[placeholder*="Message"], textarea[aria-label*="Message"]',
-  );
+  const composer = findFirstMatchingElement<HTMLElement>(documentRoot, COMPOSER_SELECTORS);
   if (!composer) {
     return { ok: false, error: 'The ChatGPT composer is not ready.' };
   }
@@ -49,9 +63,7 @@ export function populateChatGPTComposer(
   composer.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: prompt }));
 
   if (autoSubmit) {
-    const sendButton = documentRoot.querySelector<HTMLButtonElement>(
-      'button[data-testid="send-button"], button[aria-label="Send prompt"], button[aria-label*="Send"]',
-    );
+    const sendButton = findFirstMatchingElement<HTMLButtonElement>(documentRoot, SEND_BUTTON_SELECTORS);
     if (!sendButton || sendButton.disabled) {
       return { ok: false, error: 'The ChatGPT send button is not ready.' };
     }
@@ -59,6 +71,20 @@ export function populateChatGPTComposer(
   }
 
   return { ok: true };
+}
+
+function findFirstMatchingElement<ElementType extends Element>(
+  documentRoot: Document,
+  selectors: readonly string[],
+): ElementType | null {
+  for (const selector of selectors) {
+    const element = documentRoot.querySelector<ElementType>(selector);
+    if (element) {
+      return element;
+    }
+  }
+
+  return null;
 }
 
 export function showChatGPTLaunchError(documentRoot: Document, error: string): void {

@@ -29,6 +29,53 @@ describe('populateChatGPTComposer', () => {
     expect(clicks).toBe(1);
   });
 
+  it('prefers the ChatGPT prompt textarea over an earlier unrelated contenteditable', () => {
+    document.body.innerHTML = `
+      <div contenteditable="true" data-testid="unrelated-editor"></div>
+      <div id="prompt-textarea" contenteditable="true"></div>
+    `;
+
+    expect(populateChatGPTComposer(document, 'Use the intended composer', false)).toEqual({ ok: true });
+    expect(document.querySelector('[data-testid="unrelated-editor"]')).toHaveTextContent('');
+    expect(document.querySelector('#prompt-textarea')).toHaveTextContent('Use the intended composer');
+  });
+
+  it('uses semantic composer fallbacks before the broad contenteditable fallback', () => {
+    document.body.innerHTML = `
+      <div contenteditable="true" data-testid="unrelated-editor"></div>
+      <div contenteditable="true" role="textbox" data-testid="semantic-editor"></div>
+    `;
+
+    expect(populateChatGPTComposer(document, 'Use the semantic composer', false)).toEqual({ ok: true });
+    expect(document.querySelector('[data-testid="unrelated-editor"]')).toHaveTextContent('');
+    expect(document.querySelector('[data-testid="semantic-editor"]')).toHaveTextContent(
+      'Use the semantic composer',
+    );
+  });
+
+  it('keeps the broad contenteditable selector as the final composer fallback', () => {
+    document.body.innerHTML = '<div contenteditable="true" data-testid="fallback-editor"></div>';
+
+    expect(populateChatGPTComposer(document, 'Use the fallback composer', false)).toEqual({ ok: true });
+    expect(document.querySelector('[data-testid="fallback-editor"]')).toHaveTextContent(
+      'Use the fallback composer',
+    );
+  });
+
+  it('prefers an explicit send button over an earlier unrelated send-labelled button', () => {
+    document.body.innerHTML = `
+      <div id="prompt-textarea" contenteditable="true"></div>
+      <button aria-label="Send feedback"></button>
+      <button data-testid="send-button"></button>
+    `;
+    const sendButton = document.querySelector<HTMLButtonElement>('[data-testid="send-button"]')!;
+    let clicks = 0;
+    sendButton.addEventListener('click', () => { clicks += 1; });
+
+    expect(populateChatGPTComposer(document, 'Submit with the explicit button', true)).toEqual({ ok: true });
+    expect(clicks).toBe(1);
+  });
+
   it('reports a failure when the composer is unavailable', () => {
     document.body.innerHTML = '';
 
