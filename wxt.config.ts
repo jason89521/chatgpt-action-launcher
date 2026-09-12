@@ -4,7 +4,7 @@ export default defineConfig({
   manifest: {
     name: 'ChatGPT Action Launcher',
     description: 'Launch reusable prompts in a new ChatGPT conversation.',
-    permissions: ['activeTab', 'scripting'],
+    permissions: ['activeTab', 'scripting', 'storage'],
     host_permissions: ['https://chatgpt.com/*', 'https://chat.openai.com/*']
   }
 });
