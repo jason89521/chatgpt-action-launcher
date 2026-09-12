@@ -98,6 +98,34 @@ describe('popup', () => {
     ).toBeInTheDocument();
   });
 
+  it('routes a clicked action to its configured ChatGPT destination', async () => {
+    const sendMessage = vi.fn(async () => ({ ok: true }));
+    vi.stubGlobal('browser', {
+      runtime: { sendMessage },
+    });
+    const projectAction: Action = {
+      ...actions[0]!,
+      targetUrl: 'https://chatgpt.com/g/g-p-example/project',
+    };
+
+    render(
+      <Popup
+        actionStore={createStore([projectAction])}
+        captureContext={vi.fn(async () => context)}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Review page' }));
+
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledWith({
+      type: 'chatgpt:request-launch',
+      prompt: 'Review https://example.com/article: Example article\nSelected text',
+      autoSubmit: true,
+      targetUrl: 'https://chatgpt.com/g/g-p-example/project',
+    }));
+    vi.unstubAllGlobals();
+  });
+
   it('shows a visible error when loading actions fails', async () => {
     const actionStore = {
       load: vi.fn(async () => {
