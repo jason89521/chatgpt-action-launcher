@@ -32,6 +32,26 @@ describe('submitChatGPTPrompt', () => {
     expect(clicks).toBe(1);
   });
 
+  it('does not treat an unrelated send-labelled button as the submit control', () => {
+    document.body.innerHTML = '<button aria-label="Send feedback"></button>';
+
+    expect(submitChatGPTPrompt(document)).toEqual({
+      ok: false,
+      error: 'The ChatGPT send button is not ready.',
+    });
+  });
+
+  it('does not submit the same document twice', () => {
+    document.body.innerHTML = '<button data-testid="send-button"></button>';
+    const sendButton = document.querySelector('button')!;
+    let clicks = 0;
+    sendButton.addEventListener('click', () => { clicks += 1; });
+
+    expect(submitChatGPTPrompt(document)).toEqual({ ok: true });
+    expect(submitChatGPTPrompt(document)).toEqual({ ok: true });
+    expect(clicks).toBe(1);
+  });
+
   it('reports a failure when the composer is unavailable', () => {
     document.body.innerHTML = '';
 

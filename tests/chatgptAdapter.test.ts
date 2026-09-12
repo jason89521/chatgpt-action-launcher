@@ -5,6 +5,7 @@ import {
   requestChatGPTLaunch,
   type ChatGPTBrowserApi,
 } from '../src/chatgpt/chatgptAdapter';
+import { submitChatGPTPrompt } from '../src/chatgpt/chatgptContentScript';
 
 function createApi(sendMessage: ChatGPTBrowserApi['tabs']['sendMessage']): ChatGPTBrowserApi {
   return {
@@ -63,6 +64,40 @@ describe('launchPromptInNewChatGPTTab', () => {
       launchPromptInNewChatGPTTab('Prompt', true, api, { retryIntervalMs: 0 }),
     ).resolves.toEqual({ tabId: 123 });
     expect(sendMessage).toHaveBeenCalledTimes(3);
+  });
+
+  it('retries when the send button is initially unavailable', async () => {
+    document.body.innerHTML = '';
+    const sendMessage = vi.fn(async () => {
+      const response = submitChatGPTPrompt(document);
+      if (sendMessage.mock.calls.length === 1) {
+        document.body.innerHTML = '<button data-testid="send-button"></button>';
+      }
+      return response;
+    });
+    const api = createApi(sendMessage);
+
+    await expect(
+      launchPromptInNewChatGPTTab('Prompt', true, api, { retryIntervalMs: 0 }),
+    ).resolves.toEqual({ tabId: 123 });
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries when the send button is initially disabled', async () => {
+    document.body.innerHTML = '<button data-testid="send-button" disabled></button>';
+    const sendMessage = vi.fn(async () => {
+      const response = submitChatGPTPrompt(document);
+      if (sendMessage.mock.calls.length === 1) {
+        document.querySelector<HTMLButtonElement>('[data-testid="send-button"]')!.disabled = false;
+      }
+      return response;
+    });
+    const api = createApi(sendMessage);
+
+    await expect(
+      launchPromptInNewChatGPTTab('Prompt', true, api, { retryIntervalMs: 0 }),
+    ).resolves.toEqual({ tabId: 123 });
+    expect(sendMessage).toHaveBeenCalledTimes(2);
   });
 
   it('surfaces a failure instead of reporting success when the composer never becomes ready', async () => {

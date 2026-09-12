@@ -11,8 +11,10 @@ const SEND_BUTTON_SELECTORS = [
   'button[data-testid="send-button"]',
   'button[aria-label="Send prompt"]',
   'button[aria-label="Send message"]',
-  'button[aria-label*="Send"]',
+  'button[aria-label="Send"]',
 ] as const;
+
+const submittedSendButtons = new WeakSet<HTMLButtonElement>();
 
 export function handleChatGPTLaunchMessage(
   documentRoot: Document,
@@ -34,10 +36,19 @@ export function handleChatGPTLaunchMessage(
 
 export function submitChatGPTPrompt(documentRoot: Document): ChatGPTLaunchResponse {
   const sendButton = findFirstMatchingElement<HTMLButtonElement>(documentRoot, SEND_BUTTON_SELECTORS);
-  if (!sendButton || sendButton.disabled) {
+  if (
+    !sendButton ||
+    sendButton.disabled ||
+    sendButton.getAttribute('aria-disabled') === 'true'
+  ) {
     return { ok: false, error: 'The ChatGPT send button is not ready.' };
   }
 
+  if (submittedSendButtons.has(sendButton)) {
+    return { ok: true };
+  }
+
+  submittedSendButtons.add(sendButton);
   sendButton.click();
   return { ok: true };
 }
