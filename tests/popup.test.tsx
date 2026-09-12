@@ -65,6 +65,7 @@ describe('popup', () => {
     expect(await screen.findByText('No actions yet')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add your first action' }));
     expect(onManageActions).toHaveBeenCalledOnce();
+    expect(await screen.findByRole('heading', { name: 'Manage actions' })).toBeInTheDocument();
   });
 
   it('captures context, renders the prompt, and invokes the launch boundary', async () => {

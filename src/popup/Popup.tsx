@@ -126,7 +126,13 @@ export default function Popup({
         <section className="state-card empty-card">
           <h2>No actions yet</h2>
           <p>Create a reusable prompt to launch it from any page.</p>
-          <button type="button" onClick={() => onManageActions?.()}>
+          <button
+            type="button"
+            onClick={() => {
+              setIsManagingActions(true);
+              onManageActions?.();
+            }}
+          >
             Add your first action
           </button>
         </section>
