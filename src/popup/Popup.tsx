@@ -5,6 +5,7 @@ import {
   type BrowserContext,
 } from '../browserContext/browserContext';
 import { renderPromptTemplate } from '../templates/templateRenderer';
+import ActionManager, { type ActionManagerStore } from './ActionManager';
 
 export interface LaunchRequest {
   action: Action;
@@ -12,9 +13,7 @@ export interface LaunchRequest {
   prompt: string;
 }
 
-export interface PopupActionStore {
-  load(): Promise<Action[]>;
-}
+export type PopupActionStore = ActionManagerStore;
 
 export interface PopupProps {
   actionStore?: PopupActionStore;
@@ -41,6 +40,7 @@ export default function Popup({
   const [launchError, setLaunchError] = useState<string>();
   const [launchingActionId, setLaunchingActionId] = useState<string>();
   const [preparedPrompt, setPreparedPrompt] = useState<string>();
+  const [isManagingActions, setIsManagingActions] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -82,6 +82,15 @@ export default function Popup({
     }
   }
 
+  if (isManagingActions) {
+    return (
+      <ActionManager
+        actionStore={actionStore}
+        onBack={() => setIsManagingActions(false)}
+      />
+    );
+  }
+
   return (
     <main className="popup-shell">
       <header className="popup-header">
@@ -92,7 +101,10 @@ export default function Popup({
         <button
           className="manage-button"
           type="button"
-          onClick={() => onManageActions?.()}
+          onClick={() => {
+            setIsManagingActions(true);
+            onManageActions?.();
+          }}
         >
           Manage actions
         </button>

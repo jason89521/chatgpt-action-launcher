@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Popup from '../src/popup/Popup';
 import type { Action } from '../src/actions/actionStore';
+import type { ActionManagerStore } from '../src/popup/ActionManager';
 import type { BrowserContext } from '../src/browserContext/browserContext';
 
 const actions: Action[] = [
@@ -21,8 +22,14 @@ const actions: Action[] = [
   },
 ];
 
-function createStore(items: Action[] = actions) {
-  return { load: vi.fn(async () => items) };
+function createStore(items: Action[] = actions): ActionManagerStore {
+  return {
+    load: vi.fn(async () => items),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    reorder: vi.fn(),
+  };
 }
 
 const context: BrowserContext = {
@@ -95,6 +102,10 @@ describe('popup', () => {
       load: vi.fn(async () => {
         throw new Error('Storage unavailable');
       }),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      reorder: vi.fn(),
     };
     render(
       <Popup actionStore={actionStore} captureContext={vi.fn(async () => context)} />,
