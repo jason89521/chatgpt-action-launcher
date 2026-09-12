@@ -24,7 +24,7 @@ export interface PopupProps {
 }
 
 async function launchInChatGPT({ action, prompt }: LaunchRequest): Promise<void> {
-  await requestChatGPTLaunch(prompt, action.autoSubmit);
+  await requestChatGPTLaunch(prompt, action.autoSubmit, action.targetUrl);
 }
 
 const defaultActionStore = new ActionStore();

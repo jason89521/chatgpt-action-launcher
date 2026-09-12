@@ -16,6 +16,7 @@ export interface ChatGPTLaunchRequest {
   type: 'chatgpt:request-launch';
   prompt: string;
   autoSubmit: boolean;
+  targetUrl?: string;
 }
 
 export interface ChatGPTBrowserApi {
@@ -34,14 +35,15 @@ export interface ChatGPTBrowserApi {
 interface LaunchOptions {
   timeoutMs?: number;
   retryIntervalMs?: number;
+  targetUrl?: string;
 }
 
 const CHATGPT_URL = 'https://chatgpt.com/';
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_RETRY_INTERVAL_MS = 100;
 
-export function buildChatGPTLaunchUrl(prompt: string): string {
-  const url = new URL(CHATGPT_URL);
+export function buildChatGPTLaunchUrl(prompt: string, targetUrl = CHATGPT_URL): string {
+  const url = new URL(targetUrl);
   url.searchParams.set('prompt', prompt);
   return url.toString();
 }
@@ -61,7 +63,7 @@ export async function launchPromptInNewChatGPTTab(
   browserApi: ChatGPTBrowserApi = getDefaultBrowserApi(),
   options: LaunchOptions = {},
 ): Promise<{ tabId: number }> {
-  const tab = await browserApi.tabs.create({ url: buildChatGPTLaunchUrl(prompt) });
+  const tab = await browserApi.tabs.create({ url: buildChatGPTLaunchUrl(prompt, options.targetUrl) });
   if (tab.id === undefined) {
     throw new Error('ChatGPT tab could not be opened.');
   }
@@ -107,15 +109,21 @@ export async function launchPromptInNewChatGPTTab(
 export async function requestChatGPTLaunch(
   prompt: string,
   autoSubmit: boolean,
-  browserApi: ChatGPTBrowserApi = getDefaultBrowserApi(),
+  targetUrlOrBrowserApi?: string | ChatGPTBrowserApi,
+  browserApi?: ChatGPTBrowserApi,
 ): Promise<void> {
-  if (!browserApi.runtime) {
+  const targetUrl = typeof targetUrlOrBrowserApi === 'string' ? targetUrlOrBrowserApi : undefined;
+  const launchBrowserApi = typeof targetUrlOrBrowserApi === 'string'
+    ? browserApi ?? getDefaultBrowserApi()
+    : targetUrlOrBrowserApi ?? browserApi ?? getDefaultBrowserApi();
+  if (!launchBrowserApi.runtime) {
     throw new Error('The extension background service is unavailable.');
   }
-  const response = await browserApi.runtime.sendMessage({
+  const response = await launchBrowserApi.runtime.sendMessage({
     type: 'chatgpt:request-launch',
     prompt,
     autoSubmit,
+    ...(targetUrl ? { targetUrl } : {}),
   });
   if (!response.ok) {
     throw new Error(response.error ?? 'The ChatGPT composer could not be used.');

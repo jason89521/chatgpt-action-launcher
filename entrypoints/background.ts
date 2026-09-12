@@ -15,7 +15,9 @@ export default defineBackground(() => {
 
 async function handleLaunchRequest(request: ChatGPTLaunchRequest): Promise<ChatGPTLaunchResponse> {
   try {
-    await launchPromptInNewChatGPTTab(request.prompt, request.autoSubmit);
+    await launchPromptInNewChatGPTTab(request.prompt, request.autoSubmit, undefined, {
+      targetUrl: request.targetUrl,
+    });
     return { ok: true };
   } catch (error: unknown) {
     return {

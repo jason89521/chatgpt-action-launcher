@@ -41,6 +41,26 @@ describe('launchPromptInNewChatGPTTab', () => {
     expect(launchUrl.searchParams.get('prompt')).toBe(prompt);
   });
 
+  it('uses a configured ChatGPT destination and replaces only its prompt parameter', async () => {
+    const sendMessage = vi.fn(async () => ({ ok: true }));
+    const api = createApi(sendMessage);
+
+    await expect(
+      launchPromptInNewChatGPTTab(
+        '你好 👋\nhttps://example.com/?a=1&b=2',
+        false,
+        api,
+        { targetUrl: 'https://chatgpt.com/g/g-p-example/project?foo=bar&prompt=old' },
+      ),
+    ).resolves.toEqual({ tabId: 123 });
+
+    const createdUrl = new URL((api.tabs.create as ReturnType<typeof vi.fn>).mock.calls[0]![0].url);
+    expect(createdUrl.origin + createdUrl.pathname).toBe('https://chatgpt.com/g/g-p-example/project');
+    expect(createdUrl.searchParams.get('foo')).toBe('bar');
+    expect(createdUrl.searchParams.get('prompt')).toBe('你好 👋\nhttps://example.com/?a=1&b=2');
+    expect(createdUrl.searchParams.getAll('prompt')).toHaveLength(1);
+  });
+
   it('does not contact the content script when auto-submit is disabled', async () => {
     const sendMessage = vi.fn(async () => ({ ok: true }));
     const api = createApi(sendMessage);
@@ -128,6 +148,27 @@ describe('launchPromptInNewChatGPTTab', () => {
       type: 'chatgpt:request-launch',
       prompt: 'Prompt',
       autoSubmit: false,
+    });
+  });
+
+  it('sends the configured destination through the background context', async () => {
+    const sendMessage = vi.fn(async () => ({ ok: true }));
+    const api: ChatGPTBrowserApi = {
+      tabs: {
+        create: vi.fn(),
+        sendMessage: vi.fn(),
+      },
+      runtime: { sendMessage },
+    };
+
+    await expect(
+      requestChatGPTLaunch('Prompt', false, 'https://chatgpt.com/g/g-p-example/project', api),
+    ).resolves.toBeUndefined();
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: 'chatgpt:request-launch',
+      prompt: 'Prompt',
+      autoSubmit: false,
+      targetUrl: 'https://chatgpt.com/g/g-p-example/project',
     });
   });
 });
