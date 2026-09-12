@@ -5,6 +5,7 @@ import {
   type BrowserContext,
 } from '../browserContext/browserContext';
 import { renderPromptTemplate } from '../templates/templateRenderer';
+import { requestChatGPTLaunch } from '../chatgpt/chatgptAdapter';
 import ActionManager, { type ActionManagerStore } from './ActionManager';
 
 export interface LaunchRequest {
@@ -22,6 +23,10 @@ export interface PopupProps {
   onManageActions?: () => void;
 }
 
+async function launchInChatGPT({ action, prompt }: LaunchRequest): Promise<void> {
+  await requestChatGPTLaunch(prompt, action.autoSubmit);
+}
+
 const defaultActionStore = new ActionStore();
 
 function getErrorMessage(error: unknown): string {
@@ -31,7 +36,7 @@ function getErrorMessage(error: unknown): string {
 export default function Popup({
   actionStore = defaultActionStore,
   captureContext = captureActiveTabContext,
-  onLaunch,
+  onLaunch = launchInChatGPT,
   onManageActions,
 }: PopupProps) {
   const [actions, setActions] = useState<Action[]>([]);
