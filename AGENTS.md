@@ -90,3 +90,17 @@ Implement the issue that was requested and keep unrelated refactors out of scope
 If an issue's acceptance criteria conflict with this file, the more recent explicit product decision in the issue wins only when it clearly states that it is changing project policy; update this file in the same change when appropriate.
 
 When implementation reveals that an issue is too large or has an unsafe dependency, split or report the boundary instead of silently broadening the patch.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues; use the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default canonical triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repo. See `docs/agents/domain.md`.
