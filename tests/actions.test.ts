@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ActionStore,
+  DEFAULT_ACTION,
   type Action,
   type ActionStorageArea,
 } from '../src/actions/actionStore';
@@ -20,8 +21,33 @@ function createMemoryStorage(initialValue: unknown = undefined): ActionStorageAr
 }
 
 describe('ActionStore', () => {
-  it('creates and loads actions from local storage', async () => {
+  it('seeds the default action when storage has not been initialized', async () => {
     const storage = createMemoryStorage();
+    const store = new ActionStore(storage);
+
+    await expect(store.load()).resolves.toEqual([DEFAULT_ACTION]);
+    expect(storage.value).toEqual([DEFAULT_ACTION]);
+  });
+
+  it('does not overwrite existing actions, including an intentionally empty list', async () => {
+    const storage = createMemoryStorage([]);
+    const store = new ActionStore(storage);
+
+    await expect(store.load()).resolves.toEqual([]);
+    expect(storage.value).toEqual([]);
+  });
+
+  it('does not restore the default action after the user deletes it', async () => {
+    const storage = createMemoryStorage();
+    const store = new ActionStore(storage);
+    const [defaultAction] = await store.load();
+
+    await expect(store.delete(defaultAction!.id)).resolves.toBe(true);
+    await expect(store.load()).resolves.toEqual([]);
+  });
+
+  it('creates and loads actions from local storage', async () => {
+    const storage = createMemoryStorage([]);
     const store = new ActionStore(storage);
 
     const action = await store.create({
@@ -86,7 +112,7 @@ describe('ActionStore', () => {
   });
 
   it('updates and deletes an action', async () => {
-    const store = new ActionStore(createMemoryStorage());
+    const store = new ActionStore(createMemoryStorage([]));
     const first = await store.create({ name: 'First', promptTemplate: 'One', autoSubmit: false });
     const second = await store.create({ name: 'Second', promptTemplate: 'Two', autoSubmit: true });
 
@@ -101,7 +127,7 @@ describe('ActionStore', () => {
   });
 
   it('reorders actions and keeps unspecified actions at the end', async () => {
-    const store = new ActionStore(createMemoryStorage());
+    const store = new ActionStore(createMemoryStorage([]));
     const actions: Action[] = [
       await store.create({ name: 'First', promptTemplate: 'One', autoSubmit: false }),
       await store.create({ name: 'Second', promptTemplate: 'Two', autoSubmit: false }),

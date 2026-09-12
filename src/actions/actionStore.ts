@@ -21,6 +21,19 @@ export interface ActionStorageArea {
 
 const ACTIONS_STORAGE_KEY = 'actions';
 
+export const DEFAULT_ACTION: Action = {
+  id: 'default-evaluate-issue-for-luna',
+  name: '🌙 Evaluate Issue for Luna',
+  promptTemplate: `Review this GitHub issue:
+{{url}}
+
+Inspect the referenced GitHub issue and the relevant repository context. Decide whether the issue is suitable for GPT-5.6 Luna to implement independently.
+
+If it is not suitable, split it into smaller implementation tickets and create them. Avoid asking the user follow-up questions unless you are genuinely blocked.`,
+  order: 0,
+  autoSubmit: false,
+};
+
 const browserStorageArea: ActionStorageArea = {
   get: (key) => browser.storage.local.get(key) as Promise<Record<string, unknown>>,
   set: (values) => browser.storage.local.set(values),
@@ -94,7 +107,10 @@ export class ActionStore {
 
   async load(): Promise<Action[]> {
     const stored = await this.storageArea.get(ACTIONS_STORAGE_KEY);
-    const actions = normalizeActions(stored[ACTIONS_STORAGE_KEY]);
+    const hasStoredActions = stored[ACTIONS_STORAGE_KEY] !== undefined;
+    const actions = hasStoredActions
+      ? normalizeActions(stored[ACTIONS_STORAGE_KEY])
+      : [DEFAULT_ACTION];
     await this.storageArea.set({ [ACTIONS_STORAGE_KEY]: actions });
     return actions;
   }
