@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  buildChatGPTLaunchUrl,
   launchPromptInNewChatGPTTab,
   requestChatGPTLaunch,
   type ChatGPTBrowserApi,
@@ -15,7 +16,7 @@ function createApi(sendMessage: ChatGPTBrowserApi['tabs']['sendMessage']): ChatG
 }
 
 describe('launchPromptInNewChatGPTTab', () => {
-  it('opens a fresh ChatGPT tab and transfers the prompt with auto-submit setting', async () => {
+  it('opens a fresh ChatGPT tab with the encoded prompt URL', async () => {
     const sendMessage = vi.fn(async () => ({ ok: true }));
     const api = createApi(sendMessage);
 
@@ -23,12 +24,31 @@ describe('launchPromptInNewChatGPTTab', () => {
       launchPromptInNewChatGPTTab('Review https://example.com\nSelected text', true, api),
     ).resolves.toEqual({ tabId: 123 });
 
-    expect(api.tabs.create).toHaveBeenCalledWith({ url: 'https://chatgpt.com/' });
-    expect(sendMessage).toHaveBeenCalledWith(123, {
-      type: 'chatgpt:launch-prompt',
-      prompt: 'Review https://example.com\nSelected text',
-      autoSubmit: true,
+    expect(api.tabs.create).toHaveBeenCalledWith({
+      url: 'https://chatgpt.com/?prompt=Review+https%3A%2F%2Fexample.com%0ASelected+text',
     });
+    expect(sendMessage).toHaveBeenCalledWith(123, {
+      type: 'chatgpt:submit-prompt',
+    });
+  });
+
+  it('encodes all prompt content through URLSearchParams', () => {
+    const prompt = '你好 👋\nhttps://example.com/?a=1&b=2';
+    const launchUrl = new URL(buildChatGPTLaunchUrl(prompt));
+
+    expect(launchUrl.origin + launchUrl.pathname).toBe('https://chatgpt.com/');
+    expect(launchUrl.searchParams.get('prompt')).toBe(prompt);
+  });
+
+  it('does not contact the content script when auto-submit is disabled', async () => {
+    const sendMessage = vi.fn(async () => ({ ok: true }));
+    const api = createApi(sendMessage);
+
+    await expect(launchPromptInNewChatGPTTab('Review this first', false, api)).resolves.toEqual({
+      tabId: 123,
+    });
+
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 
   it('retries until the content script reports that the composer is ready', async () => {
@@ -40,7 +60,7 @@ describe('launchPromptInNewChatGPTTab', () => {
     const api = createApi(sendMessage);
 
     await expect(
-      launchPromptInNewChatGPTTab('Prompt', false, api, { retryIntervalMs: 0 }),
+      launchPromptInNewChatGPTTab('Prompt', true, api, { retryIntervalMs: 0 }),
     ).resolves.toEqual({ tabId: 123 });
     expect(sendMessage).toHaveBeenCalledTimes(3);
   });
@@ -50,7 +70,7 @@ describe('launchPromptInNewChatGPTTab', () => {
     const api = createApi(sendMessage);
 
     await expect(
-      launchPromptInNewChatGPTTab('Prompt', false, api, { timeoutMs: 1, retryIntervalMs: 0 }),
+      launchPromptInNewChatGPTTab('Prompt', true, api, { timeoutMs: 1, retryIntervalMs: 0 }),
     ).rejects.toThrow('Composer is not ready.');
     expect(sendMessage).toHaveBeenLastCalledWith(123, {
       type: 'chatgpt:launch-error',

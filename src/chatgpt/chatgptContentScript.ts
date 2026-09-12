@@ -7,15 +7,6 @@ import type {
 const ERROR_NOTICE_ID = 'chatgpt-action-launcher-error';
 const ERROR_NOTICE_STYLE_ID = 'chatgpt-action-launcher-error-style';
 
-const COMPOSER_SELECTORS = [
-  '#prompt-textarea',
-  '[contenteditable="true"][role="textbox"]',
-  '[contenteditable="true"][data-lexical-editor="true"]',
-  'textarea[placeholder*="Message"]',
-  'textarea[aria-label*="Message"]',
-  '[contenteditable="true"]',
-] as const;
-
 const SEND_BUTTON_SELECTORS = [
   'button[data-testid="send-button"]',
   'button[aria-label="Send prompt"]',
@@ -32,7 +23,7 @@ export function handleChatGPTLaunchMessage(
     return undefined;
   }
 
-  const response = populateChatGPTComposer(documentRoot, message.prompt, message.autoSubmit);
+  const response = submitChatGPTPrompt(documentRoot);
   if (!response.ok) {
     showChatGPTLaunchError(documentRoot, response.error ?? 'The ChatGPT launch failed.');
   } else {
@@ -41,35 +32,13 @@ export function handleChatGPTLaunchMessage(
   return response;
 }
 
-export function populateChatGPTComposer(
-  documentRoot: Document,
-  prompt: string,
-  autoSubmit: boolean,
-): ChatGPTLaunchResponse {
-  const composer = findFirstMatchingElement<HTMLElement>(documentRoot, COMPOSER_SELECTORS);
-  if (!composer) {
-    return { ok: false, error: 'The ChatGPT composer is not ready.' };
+export function submitChatGPTPrompt(documentRoot: Document): ChatGPTLaunchResponse {
+  const sendButton = findFirstMatchingElement<HTMLButtonElement>(documentRoot, SEND_BUTTON_SELECTORS);
+  if (!sendButton || sendButton.disabled) {
+    return { ok: false, error: 'The ChatGPT send button is not ready.' };
   }
 
-  if (composer instanceof HTMLTextAreaElement) {
-    const valueSetter = Object.getOwnPropertyDescriptor(
-      HTMLTextAreaElement.prototype,
-      'value',
-    )?.set;
-    valueSetter?.call(composer, prompt);
-  } else {
-    composer.replaceChildren(documentRoot.createTextNode(prompt));
-  }
-  composer.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: prompt }));
-
-  if (autoSubmit) {
-    const sendButton = findFirstMatchingElement<HTMLButtonElement>(documentRoot, SEND_BUTTON_SELECTORS);
-    if (!sendButton || sendButton.disabled) {
-      return { ok: false, error: 'The ChatGPT send button is not ready.' };
-    }
-    sendButton.click();
-  }
-
+  sendButton.click();
   return { ok: true };
 }
 

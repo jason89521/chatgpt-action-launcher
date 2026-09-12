@@ -23,9 +23,7 @@ function isLaunchMessage(message: unknown): message is ChatGPTLaunchMessage {
   }
   const candidate = message as Record<string, unknown>;
   return (
-    candidate.type === 'chatgpt:launch-prompt' &&
-    typeof candidate.prompt === 'string' &&
-    typeof candidate.autoSubmit === 'boolean'
+    candidate.type === 'chatgpt:submit-prompt'
   );
 }
 

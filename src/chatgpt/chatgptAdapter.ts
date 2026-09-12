@@ -1,7 +1,5 @@
 export interface ChatGPTLaunchMessage {
-  type: 'chatgpt:launch-prompt';
-  prompt: string;
-  autoSubmit: boolean;
+  type: 'chatgpt:submit-prompt';
 }
 
 export interface ChatGPTLaunchErrorMessage {
@@ -42,6 +40,12 @@ const CHATGPT_URL = 'https://chatgpt.com/';
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_RETRY_INTERVAL_MS = 100;
 
+export function buildChatGPTLaunchUrl(prompt: string): string {
+  const url = new URL(CHATGPT_URL);
+  url.searchParams.set('prompt', prompt);
+  return url.toString();
+}
+
 function getDefaultBrowserApi(): ChatGPTBrowserApi {
   return browser as unknown as ChatGPTBrowserApi;
 }
@@ -50,14 +54,14 @@ function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-/** Opens a new ChatGPT conversation and waits for its content-script adapter. */
+/** Opens a new ChatGPT conversation with the rendered prompt in its URL. */
 export async function launchPromptInNewChatGPTTab(
   prompt: string,
   autoSubmit: boolean,
   browserApi: ChatGPTBrowserApi = getDefaultBrowserApi(),
   options: LaunchOptions = {},
 ): Promise<{ tabId: number }> {
-  const tab = await browserApi.tabs.create({ url: CHATGPT_URL });
+  const tab = await browserApi.tabs.create({ url: buildChatGPTLaunchUrl(prompt) });
   if (tab.id === undefined) {
     throw new Error('ChatGPT tab could not be opened.');
   }
@@ -66,11 +70,13 @@ export async function launchPromptInNewChatGPTTab(
   const retryIntervalMs = options.retryIntervalMs ?? DEFAULT_RETRY_INTERVAL_MS;
   const deadline = Date.now() + timeoutMs;
   const message: ChatGPTLaunchMessage = {
-    type: 'chatgpt:launch-prompt',
-    prompt,
-    autoSubmit,
+    type: 'chatgpt:submit-prompt',
   };
   let lastError = 'The ChatGPT composer could not be used.';
+
+  if (!autoSubmit) {
+    return { tabId: tab.id };
+  }
 
   while (Date.now() <= deadline) {
     try {
